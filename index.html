@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>NEMA QR Code Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        margin: 0;
+        padding: 10px;
+        background-color: #f5f5f5;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      .container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        max-width: 100%;
+      }
+      
+      h2 {
+        text-align: center;
+        color: #333;
+        margin: 0 0 20px 0;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      
+      .alert {
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #f39c12;
+        background-color: #fef9e7;
+        color: #8a6d3b;
+        font-size: 14px;
+      }
+      
+      .alert.error {
+        border-left-color: #e74c3c;
+        background-color: #f2dede;
+        color: #a94442;
+      }
+      
+      .alert.success {
+        border-left-color: #27ae60;
+        background-color: #dff0d8;
+        color: #3c763d;
+      }
+      
+      .alert.warning {
+        border-left-color: #f39c12;
+        background-color: #fcf8e3;
+        color: #8a6d3b;
+      }
+      
+      #reader {
+        width: 100%;
+        max-width: 350px;
+        margin: 0 auto 20px auto;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        overflow: hidden;
+        background-color: #000;
+      }
+      
+      #result {
+        font-size: 14px;
+        text-align: center;
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+        word-wrap: break-word;
+        font-family: monospace;
+      }
+      
+      #history {
+        margin-top: 20px;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .history-item {
+        padding: 12px;
+        margin: 8px 0;
+        background-color: white;
+        border-radius: 8px;
+        border-left: 3px solid #007bff;
+        font-size: 13px;
+        word-break: break-all;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      
+      .history-item.saved {
+        border-left-color: #28a745;
+      }
+      
+      .history-item.error {
+        border-left-color: #dc3545;
+      }
+      
+      .history-item.duplicate {
+        border-left-color: #ffc107;
+        background-color: #fff8e1;
+      }
+      
+      .button {
+        display: block;
+        margin: 15px auto;
+        padding: 16px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 150px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      .button:active {
+        transform: scale(0.98);
+      }
+      
+      #stop-button {
+        background-color: #dc3545;
+        color: white;
+        display: none;
+      }
+      
+      #stop-button:hover, #stop-button:active {
+        background-color: #c82333;
+      }
+      
+      #start-button {
+        background-color: #007bff;
+        color: white;
+        display: none;
+      }
+      
+      #start-button:hover, #start-button:active {
+        background-color: #0056b3;
+      }
+      
+      #clear-button {
+        background-color: #6c757d;
+        color: white;
+        font-size: 12px;
+        padding: 8px 16px;
+        min-width: auto;
+        border-radius: 20px;
+      }
+      
+      #clear-button:hover, #clear-button:active {
+        background-color: #545b62;
+      }
+      
+      .status {
+        text-align: center;
+        margin: 15px 0;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px;
+        border-radius: 8px;
+      }
+      
+      .success { 
+        color: #28a745; 
+        background-color: #d4edda;
+      }
+      
+      .error { 
+        color: #dc3545; 
+        background-color: #f8d7da;
+      }
+      
+      .warning {
+        color: #856404;
+        background-color: #fff3cd;
+      }
+      
+      .info { 
+        color: #007bff; 
+        background-color: #d1ecf1;
+      }
+      
+      .loading {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 10px;
+        margin: 20px 0;
+        text-align: center;
+      }
+      
+      .stat-item {
+        padding: 15px 10px;
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
+      }
+      
+      .stat-number {
+        font-size: 20px;
+        font-weight: 700;
+        color: #007bff;
+        display: block;
+      }
+      
+      .stat-number.warning {
+        color: #ffc107;
+      }
+      
+      .stat-label {
+        font-size: 11px;
+        color: #666;
+        text-transform: uppercase;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+      
+      /* Performance indicator */
+      .perf-indicator {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        background-color: rgba(0, 123, 255, 0.9);
+        color: white;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: 600;
+        z-index: 1000;
+        display: none;
+      }
+      
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        animation: fadeIn 0.3s ease-in-out;
+      }
+      
+      .modal-content {
+        background-color: white;
+        margin: 20% auto;
+        padding: 30px 25px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 350px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        animation: slideIn 0.3s ease-in-out;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideIn {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      
+      .modal h3 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      
+      .modal p {
+        color: #666;
+        margin-bottom: 25px;
+        font-size: 16px;
+        line-height: 1.4;
+      }
+      
+      .modal-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+      
+      .modal-button {
+        padding: 16px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      .modal-button:active {
+        transform: scale(0.95);
+      }
+      
+      .modal-button.yes {
+        background-color: #28a745;
+        color: white;
+      }
+      
+      .modal-button.yes:hover, .modal-button.yes:active {
+        background-color: #218838;
+      }
+      
+      .modal-button.no {
+        background-color: #dc3545;
+        color: white;
+      }
+      
+      .modal-button.no:hover, .modal-button.no:active {
+        background-color: #c82333;
+      }
+      
+      .uniform-indicator {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      
+      .uniform-yes {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      
+      .uniform-no {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      
+      .history-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+      
+      /* Mobile-specific styles */
+      @media (max-width: 480px) {
+        body {
+          padding: 5px;
+        }
+        
+        .container {
+          padding: 15px;
+          border-radius: 8px;
+        }
+        
+        h2 {
+          font-size: 20px;
+          margin-bottom: 15px;
+        }
+        
+        .stats {
+          gap: 8px;
+          grid-template-columns: 1fr 1fr;
+        }
+        
+        .stat-item {
+          padding: 12px 8px;
+        }
+        
+        .stat-number {
+          font-size: 18px;
+        }
+        
+        .stat-label {
+          font-size: 10px;
+        }
+        
+        #reader {
+          max-width: 100%;
+          margin-bottom: 15px;
+        }
+        
+        .button {
+          padding: 14px 20px;
+          font-size: 15px;
+          margin: 12px auto;
+        }
+        
+        .modal-content {
+          margin: 15% auto;
+          padding: 25px 20px;
+          width: 95%;
+        }
+        
+        .modal h3 {
+          font-size: 18px;
+        }
+        
+        .modal p {
+          font-size: 15px;
+        }
+        
+        .modal-button {
+          padding: 14px 16px;
+          font-size: 15px;
+        }
+        
+        #history {
+          max-height: 200px;
+          padding: 12px;
+        }
+        
+        .history-item {
+          padding: 10px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="perf-indicator" id="perfIndicator">Saving...</div>
+    
+    <div class="container">
+      <h2>📱 NEMA QR Code Scanner</h2>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-number" id="total-scans">0</div>
+          <div class="stat-label">Total Scans</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="successful-saves">0</div>
+          <div class="stat-label">Saved to File</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="failed-saves">0</div>
+          <div class="stat-label">Failed Saves</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number warning" id="duplicate-scans">0</div>
+          <div class="stat-label">Duplicates</div>
+        </div>
+      </div>
+      
+      <div id="reader"></div>
+      <div id="result"></div>
+      <div id="status" class="status"></div>
+      
+      <button id="start-button" class="button" onclick="startScanner()">📷 Start Scanner</button>
+      <button id="stop-button" class="button" onclick="stopScanner()">⏹️ Stop Scanner</button>
+      
+      <div id="history">
+        <div class="history-header">
+          <h3>📋 Scan History</h3>
+          <button id="clear-button" class="button" onclick="clearHistory()">🗑️ Clear</button>
+        </div>
+        <div id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- Uniform Check Modal -->
+    <div id="uniformModal" class="modal">
+      <div class="modal-content">
+        <h3>👔 Uniform Check</h3>
+        <p>Is this person wearing proper uniform?</p>
+        <div class="modal-buttons">
+          <button class="modal-button yes" onclick="confirmUniform(true)">✅ Yes</button>
+          <button class="modal-button no" onclick="confirmUniform(false)">❌ No</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ==========================================
+      // OPTIMIZED CONFIGURATION
+      // ==========================================
+      const CONFIG = {
+        // Replace with your Google Apps Script Web App URL
+        API_ENDPOINT: 'https://script.google.com/macros/s/AKfycbzHnOgulsM118RSelzW21BXPUQ7CVBnxglTgWgMl8ighw8Mw4sor-kQXe51iK5F4FSnJA/exec'
+      };
+      
+      // ==========================================
+      // OPTIMIZED JSONP HELPER FUNCTIONS
+      // ==========================================
+      
+      function makeJSONPRequest(url, params = {}) {
+        return new Promise((resolve, reject) => {
+          const startTime = performance.now(); // Track performance
+          
+          // Create unique callback name
+          const callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          
+          // Create global callback function
+          window[callbackName] = function(data) {
+            const endTime = performance.now();
+            const duration = Math.round(endTime - startTime);
+            
+            // Show performance indicator
+            showPerformanceIndicator(`Saved in ${duration}ms`);
+            
+            // Clean up
+            delete window[callbackName];
+            if (document.body.contains(script)) {
+              document.body.removeChild(script);
+            }
+            
+            // Resolve with data
+            resolve(data);
+          };
+          
+          // Build URL with parameters - OPTIMIZED: Minimal params only
+          const urlParams = new URLSearchParams({
+            callback: callbackName,
+            ...params
+            // Removed cache buster to reduce URL length
+          });
+          
+          // Create script element
+          const script = document.createElement('script');
+          script.src = url + '?' + urlParams.toString();
+          
+          // Handle errors
+          script.onerror = function() {
+            // Clean up
+            delete window[callbackName];
+            if (document.body.contains(script)) {
+              document.body.removeChild(script);
+            }
+            reject(new Error('Network error'));
+          };
+          
+          // Add to DOM to trigger request
+          document.body.appendChild(script);
+          
+          // OPTIMIZED: Reduced timeout from 15s to 8s
+          setTimeout(() => {
+            if (window[callbackName]) {
+              delete window[callbackName];
+              if (document.body.contains(script)) {
+                document.body.removeChild(script);
+              }
+              reject(new Error('Request timeout'));
+            }
+          }, 8000);
+        });
+      }
+      
+      // ==========================================
+      // PERFORMANCE INDICATORS
+      // ==========================================
+      
+      function showPerformanceIndicator(message) {
+        const indicator = document.getElementById('perfIndicator');
+        indicator.textContent = message;
+        indicator.style.display = 'block';
+        indicator.style.backgroundColor = '#28a745';
+        
+        setTimeout(() => {
+          indicator.style.display = 'none';
+        }, 2000);
+      }
+      
+      function showSavingIndicator() {
+        const indicator = document.getElementById('perfIndicator');
+        indicator.textContent = 'Saving...';
+        indicator.style.display = 'block';
+        indicator.style.backgroundColor = '#007bff';
+      }
+      
+      // ==========================================
+      // APPLICATION CODE
+      // ==========================================
+      let html5QrCode = null;
+      let isScanning = false;
+      let scanHistory = [];
+      let stats = {
+        totalScans: 0,
+        successfulSaves: 0,
+        failedSaves: 0,
+        duplicateScans: 0
+      };
+      
+      // Store current scan data for uniform check
+      let currentScanData = null;
+
+      function updateStats() {
+        document.getElementById('total-scans').textContent = stats.totalScans;
+        document.getElementById('successful-saves').textContent = stats.successfulSaves;
+        document.getElementById('failed-saves').textContent = stats.failedSaves;
+        document.getElementById('duplicate-scans').textContent = stats.duplicateScans;
+      }
+
+      async function checkApiConnection() {
+        if (CONFIG.API_ENDPOINT.includes('YOUR_SCRIPT_ID')) {
+          return false;
+        }
+        
+        try {
+          const data = await makeJSONPRequest(CONFIG.API_ENDPOINT, {
+            action: 'status'
+          });
+          
+          return data.success || data.status || true;
+        } catch (error) {
+          console.log('API connection test failed, but continuing anyway:', error.message);
+          return true;
+        }
+      }
+
+      function updateStatus(message, type = 'info') {
+        const statusElement = document.getElementById('status');
+        statusElement.textContent = message;
+        statusElement.className = `status ${type}`;
+      }
+
+      function showLoading(message) {
+        const statusElement = document.getElementById('status');
+        statusElement.innerHTML = `${message}<span class="loading"></span>`;
+        statusElement.className = 'status info';
+      }
+
+      // OPTIMIZED: Simplified save function with minimal data
+      async function saveToSecureAPI(qrData, uniformCompliance) {
+        console.log('Saving QR data via JSONP:', qrData, 'Uniform:', uniformCompliance);
+        
+        const result = await makeJSONPRequest(CONFIG.API_ENDPOINT, {
+          qrData: qrData,
+          uniformCompliance: uniformCompliance ? 'Yes' : 'No'
+        });
+        
+        if (result.success === false) {
+          throw new Error(result.error || 'Save failed');
+        }
+        
+        return result;
+      }
+
+      function addToHistory(text, saved = false, error = null, uniformCompliance = null, isDuplicate = false) {
+        const timestamp = new Date().toLocaleString();
+        scanHistory.unshift({ text, timestamp, saved, error, uniformCompliance, isDuplicate });
+        
+        // Keep only last 15 scans (reduced from 20 for better performance)
+        if (scanHistory.length > 15) {
+          scanHistory = scanHistory.slice(0, 15);
+        }
+        
+        updateHistoryDisplay();
+      }
+
+      function updateHistoryDisplay() {
+        const historyList = document.getElementById('history-list');
+        historyList.innerHTML = '';
+        
+        if (scanHistory.length === 0) {
+          historyList.innerHTML = '<div style="text-align: center; color: #666; font-style: italic; padding: 20px;">No scans yet</div>';
+          return;
+        }
+        
+        scanHistory.forEach(item => {
+          const div = document.createElement('div');
+          let itemClass = 'history-item';
+          
+          if (item.isDuplicate) {
+            itemClass += ' duplicate';
+          } else if (item.saved) {
+            itemClass += ' saved';
+          } else if (item.error) {
+            itemClass += ' error';
+          }
+          
+          div.className = itemClass;
+          
+          let statusIcon = '';
+          let statusText = '';
+          if (item.isDuplicate) {
+            statusIcon = '⚠️';
+            statusText = 'Duplicate Detected';
+          } else if (item.saved) {
+            statusIcon = '✅';
+            statusText = 'Saved';
+          } else if (item.error) {
+            statusIcon = '❌';
+            statusText = `Error: ${item.error}`;
+          } else {
+            statusIcon = '⏳';
+            statusText = 'Processing...';
+          }
+          
+          let uniformIndicator = '';
+          if (item.uniformCompliance !== null && !item.isDuplicate) {
+            uniformIndicator = `<div class="uniform-indicator ${item.uniformCompliance ? 'uniform-yes' : 'uniform-no'}">
+              ${item.uniformCompliance ? '👔 Proper' : '⚠️ Improper'}
+            </div>`;
+          }
+          
+          div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+              <div style="font-weight: 600; color: #666; font-size: 11px;">${item.timestamp}</div>
+              <div style="font-size: 11px; color: ${item.isDuplicate ? '#ffc107' : (item.saved ? '#28a745' : (item.error ? '#dc3545' : '#6c757d'))}; font-weight: 500;">
+                ${statusIcon} ${statusText}
+              </div>
+            </div>
+            <div style="font-family: monospace; background-color: #f1f3f4; padding: 8px; border-radius: 6px; margin-bottom: 5px; font-size: 11px; word-break: break-all;">${item.text}</div>
+            ${uniformIndicator}
+          `;
+          historyList.appendChild(div);
+        });
+      }
+
+      function clearHistory() {
+        if (confirm('Clear all scan history?')) {
+          scanHistory = [];
+          stats = { totalScans: 0, successfulSaves: 0, failedSaves: 0, duplicateScans: 0 };
+          updateHistoryDisplay();
+          updateStats();
+        }
+      }
+
+      function showUniformModal(qrData) {
+        currentScanData = qrData;
+        document.getElementById('uniformModal').style.display = 'block';
+        updateStatus('👔 Please check uniform compliance', 'info');
+      }
+
+      function confirmUniform(hasProperUniform) {
+        // Hide modal
+        document.getElementById('uniformModal').style.display = 'none';
+        
+        if (currentScanData) {
+          // Update the latest history item with uniform compliance
+          if (scanHistory.length > 0) {
+            scanHistory[0].uniformCompliance = hasProperUniform;
+            updateHistoryDisplay();
+          }
+          
+          // Proceed with saving
+          proceedWithSave(currentScanData, hasProperUniform);
+          currentScanData = null;
+        }
+      }
+
+      async function proceedWithSave(qrData, uniformCompliance) {
+        // Show loading status and performance indicator
+        showLoading('Saving...');
+        showSavingIndicator();
+        
+        try {
+          const result = await saveToSecureAPI(qrData, uniformCompliance);
+          
+          console.log('Save result:', result);
+          
+          // Update the latest history item
+          if (scanHistory.length > 0) {
+            scanHistory[0].saved = true;
+            scanHistory[0].error = null;
+          }
+          
+          stats.successfulSaves++;
+          updateStats();
+          updateHistoryDisplay();
+          updateStatus('✅ Data saved successfully!', 'success');
+          
+        } catch (error) {
+          console.error('Failed to save:', error);
+          
+          // Check if this is a duplicate error
+          const isDuplicateError = error.message && error.message.toLowerCase().includes('duplicate');
+          
+          if (isDuplicateError) {
+            // Handle duplicate scan
+            if (scanHistory.length > 0) {
+              scanHistory[0].isDuplicate = true;
+              scanHistory[0].saved = false;
+              scanHistory[0].error = error.message;
+            }
+            
+            stats.duplicateScans++;
+            updateStatus('⚠️ Duplicate scan detected - already scanned today', 'warning');
+            
+            // Vibrate differently for duplicates (if supported)
+            if (navigator.vibrate) {
+              navigator.vibrate([100, 50, 100]); // Different pattern for duplicates
+            }
+          } else {
+            // Handle other errors
+            if (scanHistory.length > 0) {
+              scanHistory[0].saved = false;
+              scanHistory[0].error = error.message;
+            }
+            
+            stats.failedSaves++;
+            updateStatus(`❌ Failed to save: ${error.message}`, 'error');
+          }
+          
+          updateStats();
+          updateHistoryDisplay();
+        }
+      }
+
+      async function onScanSuccess(decodedText, decodedResult) {
+        console.log('Scan successful:', decodedText);
+        document.getElementById("result").innerHTML = `<strong>Latest Scan:</strong><br><code>${decodedText}</code>`;
+        
+        // Vibrate on successful scan (if supported)
+        if (navigator.vibrate) {
+          navigator.vibrate(200);
+        }
+        
+        // Update stats
+        stats.totalScans++;
+        updateStats();
+        
+        // Add to history first (will show as processing)
+        addToHistory(decodedText, false, null, null, false);
+        
+        // Show start button for next scan
+        document.getElementById("stop-button").style.display = "none";
+        document.getElementById("start-button").style.display = "block";
+        
+        // Stop the scanner
+        stopScanner();
+        
+        // Show uniform compliance modal
+        showUniformModal(decodedText);
+      }
+
+      function onScanFailure(error) {
+        // Ignore scan failures - they happen frequently during scanning
+      }
+
+      function startScanner() {
+        if (isScanning) return;
+        
+        updateStatus('📷 Starting camera...', 'info');
+        html5QrCode = new Html5Qrcode("reader");
+        
+        Html5Qrcode.getCameras().then(devices => {
+          if (devices && devices.length) {
+            // Try to use back camera first (usually better for QR scanning)
+            let selectedCamera = devices[0];
+            for (let device of devices) {
+              if (device.label && device.label.toLowerCase().includes('back')) {
+                selectedCamera = device;
+                break;
+              }
+            }
+            
+            const config = {
+              fps: 10,
+              qrbox: { width: 200, height: 200 },
+              aspectRatio: 1.0,
+              supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            };
+            
+            html5QrCode.start(selectedCamera.id, config, onScanSuccess, onScanFailure)
+              .then(() => {
+                isScanning = true;
+                updateStatus('📷 Scanner Active - Point at QR code', 'success');
+                document.getElementById("stop-button").style.display = "block";
+                document.getElementById("start-button").style.display = "none";
+              })
+              .catch(err => {
+                console.error('Failed to start scanner:', err);
+                updateStatus('❌ Failed to start camera. Please allow camera access.', 'error');
+                document.getElementById("start-button").style.display = "block";
+              });
+          } else {
+            updateStatus('❌ No camera found on this device', 'error');
+            document.getElementById("start-button").style.display = "block";
+          }
+        }).catch(err => {
+          console.error('Camera error:', err);
+          updateStatus(`❌ Camera error: ${err.message || err}`, 'error');
+          document.getElementById("start-button").style.display = "block";
+        });
+      }
+
+      function stopScanner() {
+        if (html5QrCode && isScanning) {
+          html5QrCode.stop().then(() => {
+            isScanning = false;
+            document.getElementById("stop-button").style.display = "none";
+            document.getElementById("start-button").style.display = "block";
+            updateStatus('⏹️ Scanner stopped', 'info');
+          }).catch(err => {
+            console.error('Failed to stop scanner:', err);
+            isScanning = false;
+            document.getElementById("stop-button").style.display = "none";
+            document.getElementById("start-button").style.display = "block";
+          });
+        }
+      }
+
+      // Prevent accidental modal close
+      window.onclick = function(event) {
+        const modal = document.getElementById('uniformModal');
+        if (event.target === modal) {
+          updateStatus('👔 Please select Yes or No for uniform compliance', 'info');
+        }
+      }
+
+      // Handle orientation changes
+      window.addEventListener('orientationchange', function() {
+        setTimeout(() => {
+          if (isScanning && html5QrCode) {
+            // Restart scanner after orientation change
+            stopScanner();
+            setTimeout(startScanner, 500);
+          }
+        }, 100);
+      });
+
+      // Initialize the scanner when page loads
+      window.onload = async function() {
+        updateStats();
+        
+        // Check if we're in a secure context (required for camera access)
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          updateStatus('❌ Camera access not available. Please use HTTPS.', 'error');
+          return;
+        }
+        
+        document.getElementById("start-button").style.display = "block";
+        
+        const apiConnected = await checkApiConnection();
+        updateStatus('✅ Ready to scan! Tap "Start Scanner" to begin.', 'success');
+      };
+
+      // Clean up when page unloads
+      window.onbeforeunload = function() {
+        if (html5QrCode && isScanning) {
+          html5QrCode.stop();
+        }
+      };
+    </script>
+  </body>
+</html>
