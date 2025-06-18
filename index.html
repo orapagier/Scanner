@@ -825,8 +825,7 @@
             }
             
             stats.duplicateScans++;
-            updateStatus('⚠️ Duplicate Scan -  Not Saved!\n' + 
-             'This person is already logged in today!', 'warning');
+            updateStatus('⚠️ Duplicate Scan -  Not Saved! \n <br> This person is already logged in today!', 'warning');
             
             // Vibrate differently for duplicates (if supported)
             if (navigator.vibrate) {
